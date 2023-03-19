@@ -5,7 +5,6 @@
 Champ de saisie pour l'URL Youtube
 Bouton de conversion de la vidéo en MP3
 Bouton pour ouvrir le dossier de destination pour le fichier MP3 converti
-File d'attente si plusieurs vidéo
 
 ## Package
 
