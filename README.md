@@ -8,7 +8,7 @@ Bouton pour ouvrir le dossier de destination pour le fichier MP3 converti
 
 ## Package
 
-youtube-dl et ffmpeg pour convertir les vidéos
+ytdl-core et ffmpeg pour convertir les vidéos
 Une bibliothèque de gestion des fichiers doit être utilisée pour déplacer le fichier MP3 vers le dossier de destination choisi par l'utilisateur.
 
 
