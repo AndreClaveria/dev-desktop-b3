@@ -5,26 +5,23 @@ const ButtonStyled = styled.button`
     border: none;
     color: white;
     padding: 12px 30px;
-    cursor: pointer;
+    cursor: ${({ disabled }) => disabled ? "not-allowed" : "pointer"};
     border-radius: 20px;
     font-size: 20px;
-    background-color: dodgerblue;
+    background-color: ${({ disabled }) => disabled ? "grey" : "dodgerblue"};
+    opacity: ${({ disabled }) => disabled ? "0.5" : "1"};
     &:hover {
-        background-color: RoyalBlue;
+        background-color: ${({ disabled }) => disabled ? "grey" : "RoyalBlue"};
     }
-    /* &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    } */
 `
 
-const Index = ({ children, onClick}) => {
+const Index = ({ children, onClick, disabled }) => {
 
     return (
-        <ButtonStyled onClick={onClick}>
+        <ButtonStyled onClick={onClick} disabled={disabled}>
             {children}
         </ButtonStyled>
-        
+
     )
 }
 

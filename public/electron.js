@@ -1,9 +1,10 @@
 // Module to control the application lifecycle and the native browser window.
-const { app, BrowserWindow, ipcMain, dialog,  protocol, remote} = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol} = require("electron");
 const path = require("path");
 const url = require("url");
 const ytdl = require('ytdl-core');
 const fs = require('fs');
+
 // Create the native browser window.
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -12,7 +13,7 @@ function createWindow() {
     // Set the path of an additional "preload" script that can be used to
     // communicate between node-land and browser-land.
     webPreferences: {
-      nodeIntegration: true,
+      nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, 'preload.js')
@@ -20,19 +21,43 @@ function createWindow() {
   });
 
   ipcMain.handle('download-video', async (e, videoUrl) => {
-    console.log("IpcMain handle");
+    
     const info = await ytdl.getInfo(videoUrl);
     const formats = ytdl.filterFormats(info.formats, 'audioonly');
 
     const fileFormat = formats[0];
     const fileName = info.videoDetails.title.replace(/[/\s\?%*:|"<>]/g, '') + '.mp3';
 
-    const savePath = path.join(app.getPath('music'), fileName);
-    console.log("savePath : ", savePath);
-    ytdl(videoUrl, {
+    const stream = ytdl(videoUrl, {
       format: fileFormat
-    }).pipe(fs.createWriteStream(savePath));
+    });
+
+    stream.on('progress', (chunkLength, downloaded, total) => {
+      const progress = Math.floor((downloaded / total) * 100);
+      mainWindow.webContents.send('download-progress', progress);
+    });
+  
+   
+    const defaultPath = app.getPath('music');
+    const saveResult = await dialog.showSaveDialog({
+      defaultPath: `${defaultPath}/${fileName}`
+    });
+
+    if (saveResult.canceled) {
+      return;
+    }
+  
+    const savePath = saveResult.filePath;
+    const thumbnailUrl = info.videoDetails.thumbnails[0].url;
+    console.log(thumbnailUrl);
+  
+    stream.pipe(fs.createWriteStream(savePath));
   });
+
+
+  mainWindow.loadFile('index.html');
+
+  // Pass handleDownloadProgress to the renderer process as an argument
 
   // In production, set the initial browser path to the local bundle generated
   // by the Create React App build process.
