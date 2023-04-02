@@ -1,9 +1,10 @@
 // Module to control the application lifecycle and the native browser window.
-const { app, BrowserWindow, ipcMain, dialog, protocol} = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, protocol, Notification} = require("electron");
 const path = require("path");
 const url = require("url");
 const ytdl = require('ytdl-core');
 const fs = require('fs');
+const ytpl = require('ytpl');
 
 // Create the native browser window.
 function createWindow() {
@@ -20,24 +21,77 @@ function createWindow() {
     },
   });
 
-  ipcMain.handle('download-video', async (e, videoUrl) => {
-    
-    const info = await ytdl.getInfo(videoUrl);
-    const formats = ytdl.filterFormats(info.formats, 'audioonly');
+  //For playlist
+  ipcMain.handle('download-playlist', async (e, playlistUrl) => {
+    try {
+      const playlistInfo = await ytpl(playlistUrl);
+      const videos = playlistInfo.items;
+      const notifications = [];
+  
+      for (const video of videos) {
+        const videoUrl = video.shortUrl;
+        const info = await ytdl.getInfo(videoUrl);
+        const durationSeconds = info.videoDetails.lengthSeconds;
+  
+        if (durationSeconds > 1500) {
+          mainWindow.webContents.send('download-error', { message: `Video duration exceeds 25 minutes: ${videoUrl}` });
+          continue;
+        }
+  
+        const formats = ytdl.filterFormats(info.formats, 'audioonly');
+        const fileFormat = formats[0];
+        const fileName = info.videoDetails.title.replace(/[/\s\?%*:|"<>]/g, '') + '.mp3';
+  
+        const stream = ytdl(videoUrl, {
+          format: fileFormat
+        });
+  
+        const defaultPath = app.getPath('music');
+        const savePath = `${defaultPath}/${fileName}`;
+        
+        const notification = {
+          title: 'Download complete!',
+          body: fileName,
+          icon: path.join(__dirname, 'logo192.png'),
+        };
+  
+        stream.pipe(fs.createWriteStream(savePath)).on('finish', () => {
+          notifications.push(notification);
+          if (notifications.length === videos.length) {
+            new Notification({
+              title: 'All downloads complete!',
+              body: 'Your YouTube playlist has been downloaded and converted to MP3',
+              icon: path.join(__dirname, 'logo192.png'),
+            }).show();
+          }
+        });
+       
+      }
+      
+    } catch (error) {
+      mainWindow.webContents.send('download-error', { message: error.message });
+    }
+  });
 
+  //For one video only
+  ipcMain.handle('download-video', async (e, videoUrl) => {
+    try {
+      const info = await ytdl.getInfo(videoUrl);
+    const durationSeconds = info.videoDetails.lengthSeconds;
+    if (durationSeconds > 1500) {
+      mainWindow.webContents.send('download-error', { message: `Video duration exceeds 25 minutes` });
+      return;
+    }
+    const formats = ytdl.filterFormats(info.formats, 'audioonly');
+    
     const fileFormat = formats[0];
     const fileName = info.videoDetails.title.replace(/[/\s\?%*:|"<>]/g, '') + '.mp3';
 
     const stream = ytdl(videoUrl, {
       format: fileFormat
     });
-
-    stream.on('progress', (chunkLength, downloaded, total) => {
-      const progress = Math.floor((downloaded / total) * 100);
-      mainWindow.webContents.send('download-progress', progress);
-    });
-  
    
+    
     const defaultPath = app.getPath('music');
     const saveResult = await dialog.showSaveDialog({
       defaultPath: `${defaultPath}/${fileName}`
@@ -48,20 +102,29 @@ function createWindow() {
     }
   
     const savePath = saveResult.filePath;
+    
     const thumbnailUrl = info.videoDetails.thumbnails[0].url;
-    console.log(thumbnailUrl);
-  
-    stream.pipe(fs.createWriteStream(savePath));
+
+    const notification = new Notification({
+      title: 'Download complete!',
+      body: 'Your YouTube video has been downloaded and converted to MP3',
+      icon: path.join(__dirname, 'logo192.png'), // replace with your own icon file path
+    });
+    stream.pipe(fs.createWriteStream(savePath)).on('finish', () => {
+      notification.show();
+   
+      mainWindow.webContents.send('download-complete', { thumbnailUrl });
+    });
+    return { thumbnailUrl, filePath: savePath };
+    } catch (error) {
+      mainWindow.webContents.send('download-error', { message: error.message });
+    }
+    
   });
 
 
   mainWindow.loadFile('index.html');
 
-  // Pass handleDownloadProgress to the renderer process as an argument
-
-  // In production, set the initial browser path to the local bundle generated
-  // by the Create React App build process.
-  // In development, set it to localhost to allow live/hot-reloading.
   const appURL = app.isPackaged
     ? url.format({
         pathname: path.join(__dirname, "index.html"),

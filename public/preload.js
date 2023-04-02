@@ -3,29 +3,23 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 
-contextBridge.exposeInMainWorld('downloadVideo', async (videoUrl) => {
-  await ipcRenderer.invoke('download-video', videoUrl);
+contextBridge.exposeInMainWorld('downloadMusic', async (videoUrl) => {
+  let result;
+
+  if (videoUrl.startsWith('https://www.youtube.com/playlist?')) {
+    result = await ipcRenderer.invoke('download-playlist', videoUrl);
+    
+  } else {
+    const { filePath, thumbnailUrl } = await ipcRenderer.invoke('download-video', videoUrl);
+    result = { filePath, thumbnailUrl };
+  }
+
+  return result;
 });
 
-
-
-// contextBridge.exposeInMainWorld('ipcRenderer', {
-//   on: (channel, listener) => {
-//     const allowedChannels = ['download-progress'];
-
-//     if (allowedChannels.includes(channel)) {
-//       ipcRenderer.on(channel, listener);
-//     }
-//   },
-//   removeListener: (channel, listener) => {
-//     ipcRenderer.removeListener(channel, listener);
-//   },
-// });
-
-// // Listen for download-progress event and send it to renderer process
-// ipcRenderer.on('download-progress', (event, progress) => {
-//   window.postMessage({
-//     type: 'download-progress',
-//     progress,
-//   });
-// });
+ipcRenderer.on('download-error', (event, { message }) => {
+  // Handle the error message here
+  console.log('Download error:', message);
+  window.alert(message);
+  
+});

@@ -17,13 +17,6 @@ const InputBar = styled.input`
 
 `;
 
-const CenterDiv = styled.div`
-    padding-top: 15%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-`;
 
 const Label = styled.label`
     flex-direction: column;
@@ -40,7 +33,7 @@ const Index = ({ onDownload }) => {
   };
   
     return (
-        <CenterDiv>
+        <>
             <Label htmlFor="video-url">Enter YouTube video URL</Label>
             <InputBar
                 type="text"
@@ -52,7 +45,7 @@ const Index = ({ onDownload }) => {
             />
             
             <Button onClick={handleDownload}>Download</Button>
-        </CenterDiv>
+        </>
     );
 };
 
